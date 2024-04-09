@@ -15,6 +15,16 @@ public class Company {
     private String name;
     private String description;
 
+    private double rating;
+
+    public double getRating() {
+        return rating;
+    }
+
+    public void setRating(double rating) {
+        this.rating = rating;
+    }
+
     public Company() {
     }
 

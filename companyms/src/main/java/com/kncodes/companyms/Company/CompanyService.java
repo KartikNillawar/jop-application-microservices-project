@@ -1,5 +1,7 @@
 package com.kncodes.companyms.Company;
 
+import com.kncodes.companyms.Company.dto.ReviewMessage;
+
 import java.util.List;
 
 public interface CompanyService {
@@ -12,4 +14,6 @@ public interface CompanyService {
     boolean deleteCompanyById(Long id);
 
     Company getCompanyById(Long id);
+
+    public void updateCompanyRating(ReviewMessage reviewMessage);
 }

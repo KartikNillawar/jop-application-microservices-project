@@ -1,5 +1,6 @@
 package com.kncodes.reviewms.review;
 
+import com.kncodes.reviewms.review.messaging.ReviewMessageProducer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,9 +11,12 @@ import java.util.List;
 @RequestMapping("/reviews")
 public class ReviewController {
     private ReviewService reviewService;
+    private ReviewMessageProducer reviewMessageProducer;
 
-    public ReviewController(ReviewService reviewService) {
+
+    public ReviewController(ReviewService reviewService, ReviewMessageProducer reviewMessageProducer) {
         this.reviewService = reviewService;
+        this.reviewMessageProducer = reviewMessageProducer;
     }
 
     @GetMapping
@@ -25,9 +29,10 @@ public class ReviewController {
     public ResponseEntity<String> addReviews(@RequestParam Long companyId,@RequestBody Review review)
     {
         boolean isReviewAdded = reviewService.addReview(companyId,review);
-        if(isReviewAdded)
-            return new ResponseEntity<>("Review Added Successfully",HttpStatus.OK);
-        else
+        if(isReviewAdded) {
+            reviewMessageProducer.sendMessage(review);
+            return new ResponseEntity<>("Review Added Successfully", HttpStatus.OK);
+        }else
             return new ResponseEntity<>("Review Not Added, Company not found",HttpStatus.OK);
     }
 
@@ -59,6 +64,16 @@ public class ReviewController {
             return new ResponseEntity<>("The review is deleted", HttpStatus.OK);
         else
             return new ResponseEntity<>("The review is not deleted", HttpStatus.NOT_FOUND);
+    }
+
+    @GetMapping("/averageRating")
+    public Double getAverageRating(@RequestParam Long companyId)
+    {
+        List<Review> reviewList = reviewService.getAllReviews(companyId);
+
+        Double avgrating = reviewList.stream().mapToDouble(Review::getRating).average().orElse(0.0);
+        System.out.println("Got the avg rating "+avgrating);
+        return avgrating;
     }
 
 
