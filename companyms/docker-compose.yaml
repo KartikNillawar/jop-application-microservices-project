@@ -4,12 +4,17 @@ services:
   postgres:
     container_name: postgres_container
     image: postgres
+    platform: linux/amd64
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: 12345
       PGDATA: /data/postgres
+      POSTGRES_DB_COMPANY: company
+      POSTGRES_DB_JOB: job
+      POSTGRES_DB_REVIEW: review
     volumes:
       - postgres:/data/postgres
+      - ./intialisedb.sh:/docker-entrypoint-initdb.d/intialisedb.sh
     ports:
       - "5432:5432"
     networks:
@@ -33,12 +38,85 @@ services:
 
   zipkin:
     image: openzipkin/zipkin
+    platform: linux/amd64
     container_name: zipkin
     ports:
       - "9411:9411"
     networks:
       - postgres
-      
+
+  servicereg:
+    image: kartiknillawar/servicereg
+    platform: linux/amd64
+    container_name: servicereg
+    ports:
+      - "8761:8761"
+    depends_on:
+      - rabbitmq
+      - zipkin
+      - postgres
+      - pgadmin
+    networks:
+      - microservice-network
+      - postgres
+
+  companyms:
+    image: kartiknillawar/companyms
+    platform: linux/amd64
+    container_name: company
+    ports:
+      - 8081:8081
+    depends_on:
+      - servicereg
+    networks:
+      - microservice-network
+      - postgres
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  jobms:
+    image: kartiknillawar/jobms
+    platform: linux/amd64
+    container_name: job
+    ports:
+      - 8082:8082
+    depends_on:
+      - servicereg
+    networks:
+      - microservice-network
+      - postgres
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://servicereg:8761/eureka
+
+  reviewms:
+    image: kartiknillawar/reviewms
+    platform: linux/amd64
+    container_name: review
+    ports:
+      - 8083:8083
+    depends_on:
+      - servicereg
+    networks:
+      - microservice-network
+      - postgres
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  gateway-ms:
+    image: kartiknillawar/gateway
+    platform: linux/amd64
+    container_name: gateway
+    ports:
+      - 8084:8084
+    depends_on:
+      - servicereg
+    networks:
+      - microservice-network
+      - postgres
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://servicereg:8761/eureka
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
@@ -46,12 +124,16 @@ services:
       - "5672:5672"
       - "15672:15672"
     networks:
+      - microservice-network
       - postgres
 
 networks:
+  microservice-network:
+    driver: bridge
   postgres:
     driver: bridge
 
 volumes:
   postgres:
   pgadmin:
+
